@@ -31,9 +31,18 @@ const Weather = () => {
   };
 
   const handleSearch = () => {
-    if (city) {
+    if (city.trim()) {
       setShowInitialCities(false); // Hide initial cities
       fetchWeather(city); // Fetch weather for the searched city
+    } else {
+      setShowInitialCities(true); // Show initial cities when search is cleared
+      setWeatherData({}); // Clear weather data
+    }
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      handleSearch(); // Trigger search on Enter key
     }
   };
 
@@ -51,6 +60,7 @@ const Weather = () => {
           onChange={(e) => setCity(e.target.value)} 
           placeholder="Enter City"
           className="flex-grow px-4 py-2 text-gray-700 bg-gray-200 rounded-l-lg focus:outline-none focus:bg-white"
+          onKeyDown={handleKeyDown} // Attach Enter key handler
         />
         <button 
           onClick={handleSearch} 
@@ -84,26 +94,58 @@ const Weather = () => {
 };
 
 // Component to display individual city weather
-const CityWeather = ({ city, weatherData, onClick }) => (
-  <div 
-    className="relative bg-gray-100 p-4 rounded cursor-pointer hover:bg-blue-100"
-    onClick={onClick}
-  >
-    {weatherData ? (
-      <div className="text-center">
-        <h2 className="text-xl font-bold">{weatherData.name}</h2>
-        <p className="text-lg">{Math.round(weatherData.main.temp)}°C</p>
-        <p>{weatherData.weather[0].description}</p>
-        <div className="flex justify-center mt-2">
-          <Droplet className="mr-1 text-blue-500" /> {weatherData.main.humidity}%
-          <Wind className="ml-4 mr-1 text-blue-500" /> {weatherData.wind.speed} m/s
+const CityWeather = ({ city, weatherData, onClick }) => {
+  const [showDetails, setShowDetails] = useState(false);
+
+  const handleMouseEnter = () => {
+    if (window.innerWidth >= 768) { // Only show details on hover for desktop
+      setShowDetails(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (window.innerWidth >= 768) {
+      setShowDetails(false);
+    }
+  };
+
+  const handleClick = () => {
+    setShowDetails((prev) => !prev); // Toggle details on click for both mobile and desktop
+  };
+
+  return (
+    <div 
+      className="relative bg-gray-100 p-4 rounded cursor-pointer hover:bg-blue-100"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onClick={handleClick}
+    >
+      {weatherData ? (
+        <div className="text-center">
+          <h2 className="text-xl font-bold">{weatherData.name}</h2>
+          <img 
+            src={`http://openweathermap.org/img/wn/${weatherData.weather[0].icon}@2x.png`} 
+            alt={weatherData.weather[0].description}
+            className="w-10 h-10 mx-auto"
+          />
+          <p className="text-sm mt-2">{weatherData.weather[0].description}</p> {/* Accessible weather description */}
+          
+          {showDetails && (
+            <div className="text-center mt-4">
+              <p className="text-lg">{Math.round(weatherData.main.temp)}°C</p>
+              <div className="flex justify-center mt-2">
+                <Droplet className="mr-1 text-blue-500" /> {weatherData.main.humidity}%
+                <Wind className="ml-4 mr-1 text-blue-500" /> {weatherData.wind.speed} m/s
+              </div>
+            </div>
+          )}
         </div>
-      </div>
-    ) : (
-      <p>Loading...</p>
-    )}
-  </div>
-);
+      ) : (
+        <p>Loading...</p>
+      )}
+    </div>
+  );
+};
 
 // Signup form for weather updates
 const SignUpForm = () => {
