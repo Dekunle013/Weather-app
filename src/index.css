@@ -7,5 +7,9 @@
 body {
   font-size: 13px;
   font-weight: 500;
-  font-family: san-serif;
+  font-family: Arial, sans-serif;
 }
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
