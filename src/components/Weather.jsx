@@ -1,106 +1,136 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Search, Cloud, Droplet, Wind } from 'lucide-react';
 
+const initialCities = ['New York', 'London', 'Tokyo', 'Sydney']; // 4 initial cities
+
 const Weather = () => {
-  const [cities, setCities] = useState(['Lagos', 'New York', 'London']); // Initial cities
-  const [weatherDataList, setWeatherDataList] = useState([]);
-  const [newCity, setNewCity] = useState('');
+  const [weatherData, setWeatherData] = useState({});
+  const [city, setCity] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showInitialCities, setShowInitialCities] = useState(true);
 
-  useEffect(() => {
-    fetchWeatherForCities();
-  }, [cities]);
-
-  const fetchWeatherForCities = async () => {
+  const fetchWeather = async (cityName) => {
     const apiKey = import.meta.env.VITE_WEATHER_API_KEY;
     setError('');
     setLoading(true);
-
-    const weatherPromises = cities.map(async (city) => {
-      try {
-        const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`);
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        return { city, data, error: null };
-      } catch (err) {
-        console.error('Fetch error:', err);
-        return { city, data: null, error: err.message || 'Failed to fetch weather data' };
+    try {
+      const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${cityName}&appid=${apiKey}&units=metric`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
-    });
-
-    const results = await Promise.all(weatherPromises);
-    setWeatherDataList(results);
-    setLoading(false);
-  };
-
-  const addCity = () => {
-    if (newCity && !cities.includes(newCity)) {
-      setCities([...cities, newCity]);
-      setNewCity('');
-    } else {
-      setError('City is already added or empty');
+      const data = await response.json();
+      setWeatherData((prevData) => ({ ...prevData, [cityName]: data })); // Store each city's data separately
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setError(err.message || 'Failed to fetch weather data');
+    } finally {
+      setLoading(false);
     }
   };
+
+  const handleSearch = () => {
+    if (city) {
+      setShowInitialCities(false); // Hide initial cities
+      fetchWeather(city); // Fetch weather for the searched city
+    }
+  };
+
+  // Fetch weather data for initial cities
+  React.useEffect(() => {
+    initialCities.forEach((city) => fetchWeather(city));
+  }, []);
 
   return (
     <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-lg shadow-xl">
       <div className="flex items-center mb-4">
         <input 
           type="text"
-          value={newCity}
-          onChange={(e) => setNewCity(e.target.value)} 
+          value={city}
+          onChange={(e) => setCity(e.target.value)} 
           placeholder="Enter City"
           className="flex-grow px-4 py-2 text-gray-700 bg-gray-200 rounded-l-lg focus:outline-none focus:bg-white"
         />
         <button 
-          onClick={addCity} 
+          onClick={handleSearch} 
           className="px-4 py-2 bg-blue-500 text-white rounded-r-lg hover:bg-blue-600 focus:outline-none"
           disabled={loading}
         >
-          {loading ? 'Adding...' : <Search size={20} />}
+          {loading ? 'Loading...' : <Search size={20} />}
         </button>
       </div>
       
       {error && <p className="text-red-500 mb-4">{error}</p>}
       
-      {weatherDataList.map(({ city, data, error }) => (
-        <div key={city} className="text-center mb-6">
-          {error ? (
-            <p className="text-red-500">{city}: {error}</p>
-          ) : (
-            <>
-              <h2 className="text-2xl font-bold mb-2">{city}</h2>
-              {data && (
-                <>
-                  <div className="flex justify-center items-center mb-2">
-                    <img 
-                      src={`http://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`} 
-                      alt={data.weather[0].description}
-                      className="w-16 h-16"
-                    />
-                    <p className="text-3xl font-bold">{Math.round(data.main.temp)}°C</p>
-                  </div>
-                  <p className="text-xl mb-2 capitalize">{data.weather[0].description}</p>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center justify-center bg-gray-100 p-2 rounded">
-                      <Droplet className="mr-2 text-blue-500" />
-                      <span>Humidity: {data.main.humidity}%</span>
-                    </div>
-                    <div className="flex items-center justify-center bg-gray-100 p-2 rounded">
-                      <Wind className="mr-2 text-blue-500" />
-                      <span>Wind: {data.wind.speed} m/s</span>
-                    </div>
-                  </div>
-                </>
-              )}
-            </>
-          )}
+      <div className="grid grid-cols-2 gap-4">
+        {showInitialCities && initialCities.map((cityName) => (
+          <CityWeather 
+            key={cityName} 
+            city={cityName} 
+            weatherData={weatherData[cityName]} 
+            onClick={() => fetchWeather(cityName)} 
+          />
+        ))}
+
+        {!showInitialCities && city && (
+          <CityWeather city={city} weatherData={weatherData[city]} />
+        )}
+      </div>
+
+      <SignUpForm />
+    </div>
+  );
+};
+
+// Component to display individual city weather
+const CityWeather = ({ city, weatherData, onClick }) => (
+  <div 
+    className="relative bg-gray-100 p-4 rounded cursor-pointer hover:bg-blue-100"
+    onClick={onClick}
+  >
+    {weatherData ? (
+      <div className="text-center">
+        <h2 className="text-xl font-bold">{weatherData.name}</h2>
+        <p className="text-lg">{Math.round(weatherData.main.temp)}°C</p>
+        <p>{weatherData.weather[0].description}</p>
+        <div className="flex justify-center mt-2">
+          <Droplet className="mr-1 text-blue-500" /> {weatherData.main.humidity}%
+          <Wind className="ml-4 mr-1 text-blue-500" /> {weatherData.wind.speed} m/s
         </div>
-      ))}
+      </div>
+    ) : (
+      <p>Loading...</p>
+    )}
+  </div>
+);
+
+// Signup form for weather updates
+const SignUpForm = () => {
+  const [email, setEmail] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log('Email submitted:', email);
+    setEmail('');
+  };
+
+  return (
+    <div className="mt-10 p-4 bg-gray-200 rounded-lg">
+      <h3 className="text-xl font-bold mb-2">Sign up for Weather Updates</h3>
+      <form onSubmit={handleSubmit}>
+        <input 
+          type="email" 
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Enter your email"
+          className="w-full p-2 mb-2 rounded border"
+          required
+        />
+        <button type="submit" className="w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+          Sign Up
+        </button>
+      </form>
     </div>
   );
 };
